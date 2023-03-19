@@ -18,26 +18,68 @@ const progressTracks = ref<ProgressTrack[]>([]);
 const trackNameInput = ref("");
 const selectedChallengeTier = ref<ChallengeTier>(ChallengeTier.Troublesome);
 
+const { $socket } = useNuxtApp();
+
+onMounted(() => {
+  $socket.onmessage = (event) => {
+    try {
+      const parsed = JSON.parse(event.data);
+      switch (parsed.action) {
+        case "SET_PROGRESS_TRACKS":
+          progressTracks.value = parsed.payload;
+          break;
+      }
+    } catch {
+      throw new Error("Failed to parse server payload");
+    }
+  };
+});
+
 function addProgressTrack(): void {
-  progressTracks.value.push({
-    name: trackNameInput.value,
-    challengeTier: selectedChallengeTier.value,
-    ticks: PROGRESS_TRACK_TICKS_MIN,
-  });
+  $socket.send(
+    JSON.stringify({
+      action: "SET_PROGRESS_TRACKS",
+      payload: progressTracks.value.concat({
+        name: trackNameInput.value,
+        challengeTier: selectedChallengeTier.value,
+        ticks: PROGRESS_TRACK_TICKS_MIN,
+      }),
+    })
+  );
   trackNameInput.value = "";
   selectedChallengeTier.value = ChallengeTier.Troublesome;
 }
 
+function markProgress(target: ProgressTrack, ticks: number): void {
+  $socket.send(
+    JSON.stringify({
+      action: "SET_PROGRESS_TRACKS",
+      payload: progressTracks.value.map((track) => {
+        if (track !== target) {
+          return track;
+        }
+        return {
+          ...track,
+          ticks,
+        };
+      }),
+    })
+  );
+}
+
 function deleteProgressTrack(target: ProgressTrack): void {
-  progressTracks.value = progressTracks.value.filter(
-    (track) => track !== target
+  $socket.send(
+    JSON.stringify({
+      action: "SET_PROGRESS_TRACKS",
+      payload: progressTracks.value.filter((track) => track !== target),
+    })
   );
 }
 </script>
 
 <template>
   <main>
-    <h1>Progress Tracks</h1>
+    <h1>Progress Tracker</h1>
     <section class="progress-track" v-for="track in progressTracks">
       <h2 class="name">{{ track.name }}</h2>
       <ProgressTrackBoxes :ticks="track.ticks" />
@@ -47,7 +89,7 @@ function deleteProgressTrack(target: ProgressTrack): void {
         </button>
         <button
           class="mark-button"
-          @click="track.ticks = unmarkTicks(track)"
+          @click="markProgress(track, unmarkTicks(track))"
           :disabled="track.ticks === PROGRESS_TRACK_TICKS_MIN"
         >
           -
@@ -57,7 +99,7 @@ function deleteProgressTrack(target: ProgressTrack): void {
         }}</span>
         <button
           class="mark-button"
-          @click="track.ticks = markTicks(track)"
+          @click="markProgress(track, markTicks(track))"
           :disabled="track.ticks === PROGRESS_TRACK_TICKS_MAX"
         >
           +
@@ -99,6 +141,7 @@ function deleteProgressTrack(target: ProgressTrack): void {
 <style>
 main {
   margin: 0 auto;
+  padding: 0 0.4rem;
   max-width: 65ch;
   font-family: ui-monospace, Menlo, Monaco, "Cascadia Mono", "Segoe UI Mono",
     "Roboto Mono", "Oxygen Mono", "Ubuntu Monospace", "Source Code Pro",
