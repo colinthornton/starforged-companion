@@ -1,7 +1,10 @@
 export default defineNuxtPlugin(() => {
-  const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-  const host = window.location.host;
-  const socket = new WebSocket(`${protocol}//${host}`);
+  let socket: WebSocket;
+  if (process.dev) {
+    socket = new WebSocket("ws://localhost:3001");
+  } else {
+    socket = new WebSocket(`wss://${window.location.host}`);
+  }
 
   return {
     provide: {
