@@ -14,6 +14,7 @@ import {
 
 useHead({ title: "Progress Tracker" });
 
+const connecting = ref(false);
 const progressTracks = ref<ProgressTrack[]>([]);
 const trackNameInput = ref("");
 const selectedChallengeRank = ref<ChallengeRank>(ChallengeRank.Troublesome);
@@ -32,12 +33,14 @@ watch(
 
 function initSocket(): void {
   if (!process.client) return;
+  connecting.value = true;
   $socket.value.onmessage = (event) => {
     try {
       const parsed = JSON.parse(event.data);
       switch (parsed.action) {
         case "SET_PROGRESS_TRACKS":
           progressTracks.value = parsed.payload;
+          connecting.value = false;
           break;
       }
     } catch {
@@ -151,6 +154,8 @@ function deleteProgressTrack(target: ProgressTrack): void {
       </fieldset>
     </form>
   </main>
+
+  <LoadingModal :show="connecting" />
 </template>
 
 <style>
