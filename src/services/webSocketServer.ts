@@ -2,13 +2,17 @@ import { WebSocket, WebSocketServer } from "ws";
 
 import { ProgressTrack } from "../models/ProgressTrack";
 
+let wss: WebSocketServer;
 let clients: WebSocket[] = [];
 let progressTracks: ProgressTrack[] = [];
 
-export function startWebSocketServer() {
-  const wss = new WebSocketServer({ port: 3001 });
+export type SocketServer = NonNullable<
+  NonNullable<ConstructorParameters<typeof WebSocketServer>[0]>["server"]
+>;
 
-  console.log(wss.address());
+export function startWebSocketServer(server: SocketServer) {
+  if (wss) return wss;
+  wss = new WebSocketServer({ server });
 
   wss.on("connection", (ws) => {
     clients.push(ws);
