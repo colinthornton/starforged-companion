@@ -21,7 +21,18 @@ const selectedChallengeRank = ref<ChallengeRank>(ChallengeRank.Troublesome);
 const { $socket } = useNuxtApp();
 
 onMounted(() => {
-  $socket.onmessage = (event) => {
+  initSocket();
+});
+watch(
+  () => $socket,
+  () => {
+    initSocket();
+  }
+);
+
+function initSocket(): void {
+  if (!process.client) return;
+  $socket.value.onmessage = (event) => {
     try {
       const parsed = JSON.parse(event.data);
       switch (parsed.action) {
@@ -33,10 +44,14 @@ onMounted(() => {
       throw new Error("Failed to parse server payload");
     }
   };
-});
+
+  $socket.value.onopen = () => {
+    $socket.value.send(JSON.stringify({ action: "GET_PROGRESS_TRACKS" }));
+  };
+}
 
 function addProgressTrack(): void {
-  $socket.send(
+  $socket.value.send(
     JSON.stringify({
       action: "SET_PROGRESS_TRACKS",
       payload: progressTracks.value.concat({
@@ -51,7 +66,7 @@ function addProgressTrack(): void {
 }
 
 function markProgress(target: ProgressTrack, ticks: number): void {
-  $socket.send(
+  $socket.value.send(
     JSON.stringify({
       action: "SET_PROGRESS_TRACKS",
       payload: progressTracks.value.map((track) => {
@@ -68,7 +83,7 @@ function markProgress(target: ProgressTrack, ticks: number): void {
 }
 
 function deleteProgressTrack(target: ProgressTrack): void {
-  $socket.send(
+  $socket.value.send(
     JSON.stringify({
       action: "SET_PROGRESS_TRACKS",
       payload: progressTracks.value.filter((track) => track !== target),
