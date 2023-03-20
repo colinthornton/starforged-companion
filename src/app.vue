@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import {
-  ChallengeTier,
-  challengeTiers,
-  getChallengeTierName,
-} from "@/models/ChallengeTier";
+  ChallengeRank,
+  challengeRanks,
+  getChallengeRankName,
+} from "@/models/ChallengeRank";
 import {
   ProgressTrack,
   PROGRESS_TRACK_TICKS_MIN,
@@ -16,7 +16,7 @@ useHead({ title: "Progress Tracker" });
 
 const progressTracks = ref<ProgressTrack[]>([]);
 const trackNameInput = ref("");
-const selectedChallengeTier = ref<ChallengeTier>(ChallengeTier.Troublesome);
+const selectedChallengeRank = ref<ChallengeRank>(ChallengeRank.Troublesome);
 
 const { $socket } = useNuxtApp();
 
@@ -41,13 +41,13 @@ function addProgressTrack(): void {
       action: "SET_PROGRESS_TRACKS",
       payload: progressTracks.value.concat({
         name: trackNameInput.value,
-        challengeTier: selectedChallengeTier.value,
+        challengeRank: selectedChallengeRank.value,
         ticks: PROGRESS_TRACK_TICKS_MIN,
       }),
     })
   );
   trackNameInput.value = "";
-  selectedChallengeTier.value = ChallengeTier.Troublesome;
+  selectedChallengeRank.value = ChallengeRank.Troublesome;
 }
 
 function markProgress(target: ProgressTrack, ticks: number): void {
@@ -94,8 +94,8 @@ function deleteProgressTrack(target: ProgressTrack): void {
         >
           -
         </button>
-        <span class="tier">{{
-          getChallengeTierName(track.challengeTier)
+        <span class="rank">{{
+          getChallengeRankName(track.challengeRank)
         }}</span>
         <button
           class="mark-button"
@@ -121,14 +121,14 @@ function deleteProgressTrack(target: ProgressTrack): void {
           />
         </div>
         <div class="input-group">
-          <label class="label" for="progress-track-tier">Tier</label>
+          <label class="label" for="progress-track-rank">Rank</label>
           <select
-            v-model="selectedChallengeTier"
-            id="progress-track-tier"
+            v-model="selectedChallengeRank"
+            id="progress-track-rank"
             class="select"
           >
-            <option v-for="tier in challengeTiers" class="option" :value="tier">
-              {{ getChallengeTierName(tier) }}
+            <option v-for="rank in challengeRanks" class="option" :value="rank">
+              {{ getChallengeRankName(rank) }}
             </option>
           </select>
         </div>
@@ -157,7 +157,7 @@ main {
   font-size: 1.2em;
 }
 
-.tier {
+.rank {
   font-style: italic;
   margin: 0 2ch;
 }

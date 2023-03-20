@@ -1,8 +1,8 @@
-import { ChallengeTier } from "./ChallengeTier";
+import { ChallengeRank } from "./ChallengeRank";
 
 export type ProgressTrack = {
   name: string;
-  challengeTier: ChallengeTier;
+  challengeRank: ChallengeRank;
   ticks: number;
 };
 
@@ -15,30 +15,30 @@ export const PROGRESS_TRACK_TICKS_MAX =
 export function markTicks(track: ProgressTrack): number {
   return Math.min(
     PROGRESS_TRACK_TICKS_MAX,
-    track.ticks + getChallengeTierMarkValue(track.challengeTier)
+    track.ticks + getChallengeRankMarkValue(track.challengeRank)
   );
 }
 
 export function unmarkTicks(track: ProgressTrack): number {
   return Math.max(
     PROGRESS_TRACK_TICKS_MIN,
-    track.ticks - getChallengeTierMarkValue(track.challengeTier)
+    track.ticks - getChallengeRankMarkValue(track.challengeRank)
   );
 }
 
-function getChallengeTierMarkValue(tier: ChallengeTier): number {
-  switch (tier) {
-    case ChallengeTier.Troublesome:
+function getChallengeRankMarkValue(rank: ChallengeRank): number {
+  switch (rank) {
+    case ChallengeRank.Troublesome:
       return 12;
-    case ChallengeTier.Dangerous:
+    case ChallengeRank.Dangerous:
       return 8;
-    case ChallengeTier.Formiddable:
+    case ChallengeRank.Formiddable:
       return 4;
-    case ChallengeTier.Extreme:
+    case ChallengeRank.Extreme:
       return 2;
-    case ChallengeTier.Epic:
+    case ChallengeRank.Epic:
       return 1;
     default:
-      throw new TypeError(`Expected tier to be of type ChallengeTier`);
+      throw new TypeError(`Expected rank to be of type ChallengeRank`);
   }
 }
