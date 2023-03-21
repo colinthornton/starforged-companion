@@ -23,20 +23,21 @@ export function startWebSocketServer(server: SocketServer) {
   wss.on("connection", (ws) => {
     clients.push(ws);
 
+    if (ws.readyState === ws.OPEN) {
+      sendProgressTracks(ws);
+    } else {
+      ws.on("open", () => {
+        sendProgressTracks(ws);
+      });
+    }
+
     ws.on("message", (data) => {
       try {
         const parsed = JSON.parse(String(data));
         switch (parsed.action) {
-          case "GET_PROGRESS_TRACKS":
-            ws.send(
-              JSON.stringify({
-                action: "SET_PROGRESS_TRACKS",
-                payload: progressTracks,
-              })
-            );
           case "SET_PROGRESS_TRACKS":
             try {
-              progressTracks = z
+              const payload = z
                 .array(
                   z.object({
                     name: z.string().min(1),
@@ -51,13 +52,9 @@ export function startWebSocketServer(server: SocketServer) {
                   })
                 )
                 .parse(parsed.payload);
+              progressTracks = payload;
               for (const client of clients) {
-                client.send(
-                  JSON.stringify({
-                    action: "SET_PROGRESS_TRACKS",
-                    payload: progressTracks,
-                  })
-                );
+                sendProgressTracks(client);
               }
             } finally {
               break;
@@ -72,4 +69,10 @@ export function startWebSocketServer(server: SocketServer) {
   });
 
   return wss;
+}
+
+function sendProgressTracks(ws: WebSocket) {
+  ws.send(
+    JSON.stringify({ action: "SET_PROGRESS_TRACKS", payload: progressTracks })
+  );
 }

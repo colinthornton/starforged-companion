@@ -4,9 +4,11 @@ export default defineNuxtPlugin(() => {
   const socket = ref(new WebSocket(`${protocol}//${host}`));
 
   window.addEventListener("focus", () => {
-    if (socket.value.readyState !== socket.value.OPEN) {
-      socket.value = new WebSocket(`${protocol}//${host}`);
+    const { readyState, OPEN, CONNECTING } = socket.value;
+    if (readyState === CONNECTING || readyState === OPEN) {
+      return;
     }
+    socket.value = new WebSocket(`${protocol}//${host}`);
   });
 
   return {

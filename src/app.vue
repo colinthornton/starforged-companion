@@ -47,10 +47,6 @@ function initSocket(): void {
       throw new Error("Failed to parse server payload");
     }
   };
-
-  $socket.value.onopen = () => {
-    $socket.value.send(JSON.stringify({ action: "GET_PROGRESS_TRACKS" }));
-  };
 }
 
 function addProgressTrack(): void {
