@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { Operation } from "fast-json-patch";
+
 import {
   ChallengeRank,
   challengeRanks,
@@ -13,97 +15,82 @@ import {
 } from "@/models/ProgressTrack";
 
 useHead({ title: "Progress Tracker" });
-
-const connecting = ref(false);
-const progressTracks = ref<ProgressTrack[]>([]);
-const trackNameInput = ref("");
-const selectedChallengeRank = ref<ChallengeRank>(ChallengeRank.Troublesome);
-
 const { $socket } = useNuxtApp();
 
-onMounted(() => {
-  initSocket();
+const connecting = ref(false);
+const trackNameInput = ref("");
+const selectedChallengeRank = ref<ChallengeRank>(ChallengeRank.Troublesome);
+const crewState = ref<{
+  progressTracks: ProgressTrack[];
+}>({
+  progressTracks: [],
 });
-watch(
-  () => $socket,
-  () => {
-    initSocket();
-  }
-);
 
-function initSocket(): void {
+onMounted(initSocket);
+watch(() => $socket, initSocket);
+
+function initSocket() {
   if (!process.client) return;
+
   connecting.value = true;
-  $socket.value.onmessage = (event) => {
-    try {
-      const parsed = JSON.parse(event.data);
-      switch (parsed.action) {
-        case "SET_PROGRESS_TRACKS":
-          progressTracks.value = parsed.payload;
-          connecting.value = false;
-          break;
-      }
-    } catch {
-      throw new Error("Failed to parse server payload");
-    }
-  };
+  $socket.value.addEventListener("message", (event) => {
+    crewState.value = JSON.parse(event.data);
+    connecting.value = false;
+  });
 }
 
 function addProgressTrack(): void {
-  $socket.value.send(
-    JSON.stringify({
-      action: "SET_PROGRESS_TRACKS",
-      payload: progressTracks.value.concat({
-        name: trackNameInput.value,
-        challengeRank: selectedChallengeRank.value,
-        ticks: PROGRESS_TRACK_TICKS_MIN,
-      }),
-    })
-  );
+  const value: ProgressTrack = {
+    name: trackNameInput.value,
+    challengeRank: selectedChallengeRank.value,
+    ticks: 0,
+  };
+  const operation: Operation = {
+    op: "add",
+    path: "/progressTracks/-",
+    value,
+  };
+  $socket.value.send(JSON.stringify(operation));
+
   trackNameInput.value = "";
   selectedChallengeRank.value = ChallengeRank.Troublesome;
 }
 
-function markProgress(target: ProgressTrack, ticks: number): void {
-  $socket.value.send(
-    JSON.stringify({
-      action: "SET_PROGRESS_TRACKS",
-      payload: progressTracks.value.map((track) => {
-        if (track !== target) {
-          return track;
-        }
-        return {
-          ...track,
-          ticks,
-        };
-      }),
-    })
-  );
+function removeProgressTrack(i: number): void {
+  const operation: Operation = {
+    op: "remove",
+    path: `/progressTracks/${i}`,
+  };
+  $socket.value.send(JSON.stringify(operation));
 }
 
-function deleteProgressTrack(target: ProgressTrack): void {
-  $socket.value.send(
-    JSON.stringify({
-      action: "SET_PROGRESS_TRACKS",
-      payload: progressTracks.value.filter((track) => track !== target),
-    })
-  );
+function patchTicks(i: number, ticks: number): void {
+  const operation: Operation = {
+    op: "replace",
+    path: `/progressTracks/${i}/ticks`,
+    value: ticks,
+  };
+  $socket.value.send(JSON.stringify(operation));
 }
 </script>
 
 <template>
   <main>
+    <LoginButton />
     <h1>Progress Tracker</h1>
-    <section class="progress-track" v-for="track in progressTracks">
+    <section
+      class="progress-track"
+      v-for="(track, i) in crewState.progressTracks"
+    >
       <h2 class="name">{{ track.name }}</h2>
       <ProgressTrackBoxes :ticks="track.ticks" />
       <div class="controls">
-        <button class="delete-button" @click="deleteProgressTrack(track)">
+        <button class="delete-button" @click="removeProgressTrack(i)">
           Delete
         </button>
         <button
           class="mark-button"
-          @click="markProgress(track, unmarkTicks(track))"
+          @click="patchTicks(i, unmarkTicks(track))"
           :disabled="track.ticks === PROGRESS_TRACK_TICKS_MIN"
         >
           -
@@ -113,14 +100,14 @@ function deleteProgressTrack(target: ProgressTrack): void {
         }}</span>
         <button
           class="mark-button"
-          @click="markProgress(track, markTicks(track))"
+          @click="patchTicks(i, markTicks(track))"
           :disabled="track.ticks === PROGRESS_TRACK_TICKS_MAX"
         >
           +
         </button>
       </div>
     </section>
-    <form class="form" @submit.prevent="addProgressTrack">
+    <form class="form" @submit.prevent="addProgressTrack()">
       <fieldset class="fieldset">
         <legend>New Progress Track</legend>
         <div class="input-group">

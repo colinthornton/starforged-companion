@@ -1,3 +1,4 @@
+import { applyOperation } from "fast-json-patch";
 import { WebSocket, WebSocketServer } from "ws";
 import { z } from "zod";
 
@@ -9,8 +10,12 @@ import {
 } from "../models/ProgressTrack";
 
 let wss: WebSocketServer;
-let clients: WebSocket[] = [];
-let progressTracks: ProgressTrack[] = [];
+
+const crewState: {
+  progressTracks: ProgressTrack[];
+} = {
+  progressTracks: [],
+};
 
 export type SocketServer = NonNullable<
   NonNullable<ConstructorParameters<typeof WebSocketServer>[0]>["server"]
@@ -18,61 +23,59 @@ export type SocketServer = NonNullable<
 
 export function startWebSocketServer(server: SocketServer) {
   if (wss) return wss;
-  wss = new WebSocketServer({ server });
+  wss = new WebSocketServer({ server, path: "/wss" });
 
-  wss.on("connection", (ws) => {
-    clients.push(ws);
+  wss.on("connection", (client) => {
+    initClient(client);
 
-    if (ws.readyState === ws.OPEN) {
-      sendProgressTracks(ws);
-    } else {
-      ws.on("open", () => {
-        sendProgressTracks(ws);
-      });
-    }
-
-    ws.on("message", (data) => {
+    client.on("message", (data) => {
       try {
-        const parsed = JSON.parse(String(data));
-        switch (parsed.action) {
-          case "SET_PROGRESS_TRACKS":
-            try {
-              const payload = z
-                .array(
-                  z.object({
-                    name: z.string().min(1),
-                    challengeRank: z
-                      .number()
-                      .min(ChallengeRank.Troublesome)
-                      .max(ChallengeRank.Epic),
-                    ticks: z
-                      .number()
-                      .min(PROGRESS_TRACK_TICKS_MIN)
-                      .max(PROGRESS_TRACK_TICKS_MAX),
-                  })
-                )
-                .parse(parsed.payload);
-              progressTracks = payload;
-              for (const client of clients) {
-                sendProgressTracks(client);
-              }
-            } finally {
-              break;
-            }
-        }
-      } catch {}
-    });
-
-    ws.on("close", () => {
-      clients = clients.filter((client) => client !== ws);
+        const operation = JSON.parse(String(data));
+        applyOperation(crewState, operation);
+        wss.clients.forEach(sendCrewState);
+      } catch {
+        client.terminate();
+      }
     });
   });
 
   return wss;
 }
 
-function sendProgressTracks(ws: WebSocket) {
-  ws.send(
-    JSON.stringify({ action: "SET_PROGRESS_TRACKS", payload: progressTracks })
-  );
+function initClient(client: WebSocket) {
+  let timeout: NodeJS.Timeout;
+
+  if (client.readyState === client.OPEN) {
+    sendCrewState(client);
+    timeout = heartbeat(client);
+  } else {
+    client.on("open", () => {
+      sendCrewState(client);
+      timeout = heartbeat(client);
+    });
+  }
+
+  client.on("close", () => {
+    clearTimeout(timeout);
+  });
+}
+
+function sendCrewState(client: WebSocket) {
+  client.send(JSON.stringify(crewState));
+}
+
+function heartbeat(client: WebSocket) {
+  let ponged = false;
+  client.once("pong", () => {
+    ponged = true;
+  });
+  client.ping();
+
+  return setTimeout(() => {
+    if (ponged) {
+      heartbeat(client);
+    } else {
+      client.terminate();
+    }
+  }, 30000);
 }

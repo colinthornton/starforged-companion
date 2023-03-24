@@ -21,7 +21,7 @@ watch(
 </script>
 
 <template>
-  <dialog ref="loadingModal" class="loading-modal">
+  <dialog ref="loadingModal" class="loading-modal" @cancel.prevent>
     <div class="lds-ripple">
       <div></div>
       <div></div>

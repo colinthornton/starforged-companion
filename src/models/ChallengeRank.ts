@@ -14,8 +14,8 @@ export const challengeRanks: ChallengeRank[] = [
   ChallengeRank.Epic,
 ];
 
-export function getChallengeRankName(tier: ChallengeRank) {
-  switch (tier) {
+export function getChallengeRankName(rank: ChallengeRank) {
+  switch (rank) {
     case ChallengeRank.Troublesome:
       return "troublesome";
     case ChallengeRank.Dangerous:
@@ -27,6 +27,6 @@ export function getChallengeRankName(tier: ChallengeRank) {
     case ChallengeRank.Epic:
       return "epic";
     default:
-      throw new TypeError(`Expected tier to be of type ChallengeRank`);
+      throw new TypeError(`Expected rank to be of type ChallengeRank`);
   }
 }
