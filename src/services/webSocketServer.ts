@@ -1,13 +1,7 @@
-import { applyOperation } from "fast-json-patch";
+import jsonPatch from "fast-json-patch";
 import { WebSocket, WebSocketServer } from "ws";
-import { z } from "zod";
 
-import { ChallengeRank } from "../models/ChallengeRank";
-import {
-  ProgressTrack,
-  PROGRESS_TRACK_TICKS_MAX,
-  PROGRESS_TRACK_TICKS_MIN,
-} from "../models/ProgressTrack";
+import { ProgressTrack } from "../models/ProgressTrack";
 
 let wss: WebSocketServer;
 
@@ -31,7 +25,7 @@ export function startWebSocketServer(server: SocketServer) {
     client.on("message", (data) => {
       try {
         const operation = JSON.parse(String(data));
-        applyOperation(crewState, operation);
+        jsonPatch.applyOperation(crewState, operation);
         wss.clients.forEach(sendCrewState);
       } catch {
         client.terminate();
